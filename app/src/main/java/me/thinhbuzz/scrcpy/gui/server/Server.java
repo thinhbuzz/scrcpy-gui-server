@@ -3,8 +3,8 @@ package me.thinhbuzz.scrcpy.gui.server;
 import me.thinhbuzz.scrcpy.gui.server.commands.ListCommand;
 
 public final class Server {
+    // CLASSPATH=/data/local/tmp/scrcpy-gui-server app_process / me.thinhbuzz.scrcpy.gui.server.Server --list app --list-type system && rm /data/local/tmp/scrcpy-gui-server
     public static void main(String... args) {
-        Ln.i("Hello World!");
         try {
             new Server().start(args);
         } catch (Exception e) {
@@ -13,12 +13,9 @@ public final class Server {
     }
 
     void start(String[] args) {
-        Ln.i("Starting server...");
         CliArgs cliArgs = new CliArgs(args);
         if (cliArgs.has("list")) {
             new ListCommand(cliArgs).run();
         }
-        Ln.i("Parsed args: " + cliArgs);
-        Ln.i("Done.");
     }
 }

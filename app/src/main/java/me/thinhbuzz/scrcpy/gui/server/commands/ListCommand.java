@@ -21,7 +21,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.List;
-import java.util.Objects;
 
 import me.thinhbuzz.scrcpy.gui.server.CliArgs;
 import me.thinhbuzz.scrcpy.gui.server.Ln;
@@ -35,6 +34,13 @@ public class ListCommand {
 
     @SuppressLint("QueryPermissionsNeeded")
     public void run() {
+        if (cliArgs.get("list").equals("app")) {
+            handleListApps();
+        }
+    }
+
+    @SuppressLint("QueryPermissionsNeeded")
+    public void handleListApps() {
         if (Looper.myLooper() == null) {
             Looper.prepareMainLooper();
         }
@@ -55,33 +61,31 @@ public class ListCommand {
             assert context != null;
             PackageManager pm = context.getPackageManager();
             List<PackageInfo> packages;
-
+            int flags = PackageManager.MATCH_UNINSTALLED_PACKAGES;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packages = pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0));
+                packages = pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(flags));
             } else {
-                packages = pm.getInstalledPackages(0);
+                packages = pm.getInstalledPackages(flags);
             }
 
             JSONArray jsonArray = new JSONArray();
-            boolean onlySystemApps = Objects.equals(cliArgs.get("list-type"), "system");
+            String listType = cliArgs.get("list-type", "all"); // all, system, user
             for (PackageInfo packageInfo : packages) {
-                if (packageInfo.packageName.equals(context.getPackageName())) {
-                    continue;
-                }
-
                 assert packageInfo.applicationInfo != null;
-                boolean isSystemApp = (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-                if (onlySystemApps != isSystemApp) {
+                boolean isSystemApp = isSystemPackage(packageInfo);
+                if ((listType.equals("system")) && !isSystemApp || (listType.equals("user") && isSystemApp)) {
                     continue;
                 }
                 String appName = packageInfo.applicationInfo.loadLabel(pm).toString();
+                boolean isInstalledForUser = (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_INSTALLED) != 0;
                 String base64Icon = getAppIconAsBase64(packageInfo, pm);
                 JSONObject jsonObject = new JSONObject();
 
                 jsonObject.put("name", appName);
                 jsonObject.put("packageName", packageInfo.packageName);
+                jsonObject.put("isDisabled", !packageInfo.applicationInfo.enabled);
                 jsonObject.put("isSystemApp", isSystemApp);
-
+                jsonObject.put("isInstalledForUser", isInstalledForUser);
                 jsonObject.put("base64Icon", base64Icon);
 
                 jsonArray.put(jsonObject);
@@ -92,10 +96,18 @@ public class ListCommand {
         }
     }
 
+    private static boolean isSystemPackage(PackageInfo pkgInfo) {
+        assert pkgInfo.applicationInfo != null;
+        boolean isSystem = (pkgInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+        boolean isUpdatedSystem = (pkgInfo.applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+        return isSystem || isUpdatedSystem;
+    }
+
     private static String getAppIconAsBase64(PackageInfo packageInfo, PackageManager pm) {
         try {
+            assert packageInfo.applicationInfo != null;
             Drawable drawable = pm.getApplicationIcon(packageInfo.applicationInfo);
-            Bitmap bitmap = toBitmap(drawable, 32, 32);
+            Bitmap bitmap = toBitmap(drawable);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
             return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP);
@@ -104,9 +116,9 @@ public class ListCommand {
         }
     }
 
-    private static Bitmap toBitmap(Drawable drawable, Integer width, Integer height) {
+    private static Bitmap toBitmap(Drawable drawable) {
         if (drawable instanceof BitmapDrawable) {
-            return Bitmap.createScaledBitmap(((BitmapDrawable) drawable).getBitmap(), width, height, true);
+            return Bitmap.createScaledBitmap(((BitmapDrawable) drawable).getBitmap(), 32, 32, true);
         }
 
         Rect bounds = drawable.getBounds();
@@ -116,8 +128,8 @@ public class ListCommand {
         int oldBottom = bounds.bottom;
 
 
-        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-        drawable.setBounds(0, 0, width, height);
+        Bitmap bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888);
+        drawable.setBounds(0, 0, 32, 32);
         drawable.draw(new Canvas(bitmap));
 
         drawable.setBounds(oldLeft, oldTop, oldRight, oldBottom);
