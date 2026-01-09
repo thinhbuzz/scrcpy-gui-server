@@ -71,19 +71,24 @@ public class ListCommand {
             JSONArray jsonArray = new JSONArray();
             String listType = cliArgs.get("list-type", "all"); // all, system, user
             for (PackageInfo packageInfo : packages) {
-                assert packageInfo.applicationInfo != null;
-                boolean isSystemApp = isSystemPackage(packageInfo);
+                if (packageInfo.applicationInfo == null) {
+                    continue;
+                }
+                ApplicationInfo applicationInfo = packageInfo.applicationInfo;
+                boolean isSystemApp = isSystemPackage(applicationInfo);
                 if ((listType.equals("system")) && !isSystemApp || (listType.equals("user") && isSystemApp)) {
                     continue;
                 }
-                String appName = packageInfo.applicationInfo.loadLabel(pm).toString();
-                boolean isInstalledForUser = (packageInfo.applicationInfo.flags & ApplicationInfo.FLAG_INSTALLED) != 0;
-                String base64Icon = getAppIconAsBase64(packageInfo, pm);
+                String appName = applicationInfo.loadLabel(pm).toString();
+                boolean isInstalledForUser = (applicationInfo.flags & ApplicationInfo.FLAG_INSTALLED) != 0;
+                String base64Icon = getAppIconAsBase64(applicationInfo, pm);
                 JSONObject jsonObject = new JSONObject();
 
                 jsonObject.put("name", appName);
                 jsonObject.put("packageName", packageInfo.packageName);
-                jsonObject.put("isDisabled", !packageInfo.applicationInfo.enabled);
+                jsonObject.put("versionName", packageInfo.versionName);
+                jsonObject.put("versionCode", packageInfo.versionCode);
+                jsonObject.put("isDisabled", !applicationInfo.enabled);
                 jsonObject.put("isSystemApp", isSystemApp);
                 jsonObject.put("isInstalledForUser", isInstalledForUser);
                 jsonObject.put("base64Icon", base64Icon);
@@ -96,17 +101,15 @@ public class ListCommand {
         }
     }
 
-    private static boolean isSystemPackage(PackageInfo pkgInfo) {
-        assert pkgInfo.applicationInfo != null;
-        boolean isSystem = (pkgInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-        boolean isUpdatedSystem = (pkgInfo.applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+    private static boolean isSystemPackage(ApplicationInfo applicationInfo) {
+        boolean isSystem = (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+        boolean isUpdatedSystem = (applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
         return isSystem || isUpdatedSystem;
     }
 
-    private static String getAppIconAsBase64(PackageInfo packageInfo, PackageManager pm) {
+    private static String getAppIconAsBase64(ApplicationInfo applicationInfo, PackageManager pm) {
         try {
-            assert packageInfo.applicationInfo != null;
-            Drawable drawable = pm.getApplicationIcon(packageInfo.applicationInfo);
+            Drawable drawable = pm.getApplicationIcon(applicationInfo);
             Bitmap bitmap = toBitmap(drawable);
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
