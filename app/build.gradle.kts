@@ -12,8 +12,8 @@ android {
         applicationId = "me.thinhbuzz.scrcpy.gui.server"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1001
-        versionName = "1.0.1"
+        versionCode = 1002
+        versionName = "1.0.2"
     }
     signingConfigs {
         create("release") {

@@ -16,6 +16,10 @@ public final class Server {
         CliArgs cliArgs = new CliArgs(args);
         if (cliArgs.has("list")) {
             new ListCommand(cliArgs).run();
+            return;
+        }
+        if (cliArgs.has("version")) {
+            Ln.i("Scrcpy GUI Server version: 1.0.2 - 1002");
         }
     }
 }
